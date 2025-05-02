@@ -28,7 +28,7 @@ import serviceAccount from "/etc/secrets/service-account-key.json" assert {type:
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://br-events-default-rtdb.firebaseio.com" // database URL
+  databaseURL: process.env.FIREBASE_DB_URL // database URL
 });
 
 const db = admin.database(); // Get a database reference
