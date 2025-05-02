@@ -8,7 +8,6 @@ import twilio from 'twilio';
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const client = twilio(accountSid, authToken);
-const sessions = new Map();
 
 const app = express();
 app.use(express.json());
@@ -160,9 +159,6 @@ app.ws('/connection', (ws) => {
       console.log("Incoming orcestration: ", msg);
 
       if (msg.type === "setup") {
-        // set up the session
-        const callSid = msg.callSid;
-        sessions.set(callSid, [{role: "system", content: }])
         // Find the threadID from firebase
         const phoneNumber = msg.from.slice(2, msg.from.length) // remove the country code (+1)
         let userId = hashPhoneNumber(phoneNumber);
