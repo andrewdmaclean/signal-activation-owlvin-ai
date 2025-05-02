@@ -23,7 +23,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 ////// Firebase Stuff /////
 import { getDatabase, ref, update, serverTimestamp, get } from "firebase/database";
 import admin from "firebase-admin";
-// import serviceAccount from "../service-account-key.json" assert {type: "json"}; // local
+// import serviceAccount from "./service-account-key.json" assert {type: "json"}; // local
 import serviceAccount from "/etc/secrets/service-account-key.json" assert {type: "json"}; // deployment
 
 admin.initializeApp({
@@ -41,8 +41,6 @@ function hashPhoneNumber(number) {
 }
 
 async function checkForExistingThread(userId){
-  
-
         // Preform query in firebase
         let data;
         try {
@@ -51,7 +49,7 @@ async function checkForExistingThread(userId){
           const data = result.val()
           console.log("data: ", data) 
           // delete old OpenAI assistant: data.assistantId
-          await openai.beta.assistants.delete(data.assistantId)
+          await openai.beta.assistants.del(data.assistantId)
           if(data){
             return data.thread;
           } else {
