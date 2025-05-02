@@ -1,0 +1,30 @@
+{
+  "name": "signal-activation-owlvin-ai",
+  "version": "1.0.0",
+  "description": "Code for the Signal 2025 Activation: Owlvin",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kchresfield/signal-activation-owlvin-ai.git"
+  },
+  "author": "Kaelyn Chresfield",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kchresfield/signal-activation-owlvin-ai/issues"
+  },
+  "homepage": "https://github.com/kchresfield/signal-activation-owlvin-ai#readme",
+  "dependencies": {
+    "crypto": "^1.0.1",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "express-ws": "^5.0.2",
+    "firebase": "^11.6.1",
+    "firebase-admin": "^13.3.0",
+    "openai": "^4.92.1"
+  }
+}
