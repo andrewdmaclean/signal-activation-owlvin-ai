@@ -81,7 +81,7 @@ app.post('/voice', async (req, res) => {
   console.log("here's the data: ", data)
 
   connect.conversationRelay({
-    url: "wss://6bd61a7d7052.ngrok.app/connection",
+    url: "wss://signal-activation-owlvin-ai.onrender.com/connection",
     transcriptionProvider: "Google",
     ttsProvider: 'Elevenlabs',
     speechModel: "telephony",
