@@ -5,8 +5,8 @@ import ExpressWs from 'express-ws';
 import crypto from 'crypto';
 
 import twilio from 'twilio';
-const accountSid = process.env.TWILIO_ACCOUNT_SID;
-const authToken = process.env.TWILIO_AUTH_TOKEN;
+const accountSid = process.env.TWILIO_ACCOUNT_SID_MESSAGING;
+const authToken = process.env.TWILIO_AUTH_TOKEN_MESSAGING;
 const client = twilio(accountSid, authToken);
 const VoiceResponse = twilio.twiml.VoiceResponse;
 
@@ -24,8 +24,8 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 ////// Firebase Stuff /////
 import { getDatabase, ref, update, serverTimestamp, get } from "firebase/database";
 import admin from "firebase-admin";
-// import serviceAccount from "./service-account-key.json" assert {type: "json"}; // local
-import serviceAccount from "/etc/secrets/service-account-key.json" with {type: "json"}; // deployment
+import serviceAccount from "./service-account-key.json" assert {type: "json"}; // local
+// import serviceAccount from "/etc/secrets/service-account-key.json" with {type: "json"}; // deployment
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -43,16 +43,17 @@ function hashPhoneNumber(number) {
 
 async function checkForExistingThread(userId) {
   // Preform query in firebase
+  console.log("in the check for existing thread function, cr-server: ", userId)
   let data;
   try {
     const userRef = ref(db, `users/${userId}/profile`);
     const result = await get(userRef)
     const data = result.val()
-    console.log("data: ", data)
+    console.log("data from firebase (cr-server.js): ", data)
     // delete old OpenAI assistant: data.assistantId
-    await openai.beta.assistants.del(data.assistantId)
     if (data) {
-      return data.thread;
+        await openai.beta.assistants.del(data.assistantId)
+        return data.thread;
     } else {
       return false;
     }
@@ -83,8 +84,8 @@ app.post('/voice', async (req, res) => {
   const loadingMessage = [
     "Hi there Let me finish up my snack I'll be right there give me 4 seconds",
     "Hello there three seconds please",
-    "I was not expecting a call let me finish the last of my tea and we can talk",
-    "Well I must be popular my phone is ringing off the hook I will be right with you in a moments",
+    "Let me finish the last of my tea and then we can talk",
+    "Well I must be popular my phone is ringing off the hook I will be right with you in a moment",
   ]
 
   connect.conversationRelay({
@@ -102,7 +103,7 @@ app.post('/voice', async (req, res) => {
 });
 
 app.post('/create-assistant', async (req, res) => {
-  console.log("the request body: ", req.body)
+  console.log("the request body from cr-service.js: ", req.body)
   let userId = hashPhoneNumber(req.body.phoneNumber);
   let topic = req.body.topic;
   let personality = req.body.personality;
@@ -121,7 +122,8 @@ app.post('/create-assistant', async (req, res) => {
     default:
       voiceId = "5e3JKXK83vvgQqBcdUol"
   }
-  const prompt = `You are a chat bot who will discuss ${topic} with the caller. Never include punctuation or exclamation marks in your responses. You have a very strong ${personality} personality and you incorporate that personality in each response. Never include punctuation or exclamation marks in your responses. Feel free to discuss anything with the caller and feel free to bring up old topics that were discussed in previous chats. Never include punctuation or exclamation marks in your responses. You will initiate the conversation, so based on your personality and topic, start a conversation! Never ever include punctuation in your responses.`
+  console.log("the voiceId selected: ", voiceId)
+  const prompt = `You are a chat bot who will discuss ${topic} with the caller. Never include punctuation or exclamation marks in your responses. You have a very strong ${personality} personality and you incorporate that personality in each response. Never include punctuation or exclamation marks in your responses. Keep reponses short, no more than 2 sentences. Feel free to discuss anything with the caller and feel free to bring up old topics that were discussed in previous chats. Never include punctuation or exclamation marks in your responses. You will initiate the conversation, so based on your personality and topic, start a conversation! Never ever include punctuation in your responses.`
 
   /////////// Create a new assistant with OpenAI ////////////////
   let assistant;
@@ -139,7 +141,7 @@ app.post('/create-assistant', async (req, res) => {
   }
 
   if (!assistant || !assistant.id) {
-    console.warn("Assistant ID not immediately available. Waiting...");
+    console.log("Assistant ID not immediately available. Waiting...");
     await new Promise(resolve => setTimeout(resolve, 2000));
   }
   const assistantId = assistant.id;
@@ -168,7 +170,7 @@ app.post('/create-assistant', async (req, res) => {
 
   const dbRef = ref(db);
   const path = `users/${userId}/profile/`
-  console.log(assistantId)
+  console.log("here's the assistant Id we're adding: ", assistantId)
   const profileDetails = {
     assistantId,
     thread,
@@ -189,18 +191,18 @@ app.post('/create-assistant', async (req, res) => {
   res.send(200, "good")
 
 //     //////////////// Send Text Message ////////////////////
-//     try {
-//         console.log("about to create the message to send!")
-//         await client.messages.create({
-//           from: '+19176510742',
-//           to: req.body.phoneNumber,
-//           body: "Your custom Owlvin Bot is ready! Call 917-651-0742 to get started!"
-//         }).then(s => {
-//           console.log('MESSAGE RETURN', s);
-//         });          
-//       } catch (error) {
-//         console.error('ERROR!!!!!!!', error);
-//       }
+    try {
+        console.log("about to create the message to send!")
+        await client.messages.create({
+          from: '+18506695677',
+          to: req.body.phoneNumber,
+          body: "Your custom Owlvin Bot is ready! Call 917-651-0742 to get started!"
+        }).then(s => {
+          console.log('MESSAGE RETURN', s);
+        });          
+      } catch (error) {
+        console.error('ERROR!!!!!!!', error);
+      }
 //   ////////////////////////////////////////////////////////
 })
 
