@@ -85,7 +85,7 @@ app.post('/voice', async (req, res) => {
     "Hi there Let me finish up my snack I'll be right there give me 4 seconds",
     "Hello there three seconds please",
     "Let me finish the last of my tea and then we can talk",
-    "Well I must be popular my phone is ringing off the hook I will be right with you in a moment",
+    "Well well I must be popular my phone is ringing off the hook I will be right with you in a moment",
   ]
 
   connect.conversationRelay({
@@ -155,7 +155,7 @@ app.post('/create-assistant', async (req, res) => {
   } catch (err) {
     console.error("Issue checking for existing thread: ", err)
   }
-  console.log("result from thread check: ", thread)
+//   console.log("result from thread check: ", thread)
 
   // Check for an existing thread. If one exist, use it. If not, create one.
   if (!thread) {
@@ -170,7 +170,6 @@ app.post('/create-assistant', async (req, res) => {
 
   const dbRef = ref(db);
   const path = `users/${userId}/profile/`
-  console.log("here's the assistant Id we're adding: ", assistantId)
   const profileDetails = {
     assistantId,
     thread,
@@ -192,13 +191,12 @@ app.post('/create-assistant', async (req, res) => {
 
 //     //////////////// Send Text Message ////////////////////
     try {
-        console.log("about to create the message to send!")
         await client.messages.create({
           from: process.env.FROM_NUMBER,
           to: req.body.phoneNumber,
-          body: "Your custom Owlvin Bot is ready! Call 917-651-0742 to get started!"
+          body: "Your custom Owlvin Bot is ready! Call (415)704-6756 to get started!"
         }).then(s => {
-          console.log('MESSAGE RETURN', s);
+          console.log('message sent');
         });          
       } catch (error) {
         console.error('ERROR!!!!!!!', error);
