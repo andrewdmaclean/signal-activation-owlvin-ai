@@ -24,8 +24,8 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 ////// Firebase Stuff /////
 import { getDatabase, ref, update, serverTimestamp, get } from "firebase/database";
 import admin from "firebase-admin";
-import serviceAccount from "./service-account-key.json" assert {type: "json"}; // local
-// import serviceAccount from "/etc/secrets/service-account-key.json" assert {type: "json"}; // deployment
+// import serviceAccount from "./service-account-key.json" assert {type: "json"}; // local
+import serviceAccount from "/etc/secrets/service-account-key.json" with {type: "json"}; // deployment
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -80,12 +80,21 @@ app.post('/voice', async (req, res) => {
   let voiceId = data.voiceId;
   console.log("here's the data: ", data)
 
+//   const loadingMessage = [
+//     "Let me finish up my snack I'll be right there",
+//     "Oh hello one second please",
+//     "I was not expecting a call let me finish my tea and we can talk",
+//     "Well I must be popular I will be right with you in a second",
+//   ]
+
   connect.conversationRelay({
     url: "wss://signal-activation-owlvin-ai.onrender.com/connection",
     transcriptionProvider: "Google",
     ttsProvider: 'Elevenlabs',
     speechModel: "telephony",
     voice: voiceId,
+    // interruptible: "none",
+    // welcomeGreeting: loadingMessage[Math.floor(Math.random() * loadingMessage.length)]
   });
 
   res.type('text/xml');
@@ -179,6 +188,20 @@ app.post('/create-assistant', async (req, res) => {
 
   res.send(200, "good")
 
+//     //////////////// Send Text Message ////////////////////
+//     try {
+//         console.log("about to create the message to send!")
+//         await client.messages.create({
+//           from: '+19176510742',
+//           to: req.body.phoneNumber,
+//           body: "Your custom Owlvin Bot is ready! Call 917-651-0742 to get started!"
+//         }).then(s => {
+//           console.log('MESSAGE RETURN', s);
+//         });          
+//       } catch (error) {
+//         console.error('ERROR!!!!!!!', error);
+//       }
+//   ////////////////////////////////////////////////////////
 })
 
 

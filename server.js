@@ -179,6 +179,20 @@ app.post('/create-assistant', async (req, res) => {
 
   res.send(200, "good")
 
+  //////////////// Send Text Message ////////////////////
+      try {
+        console.log("about to create the message to send!")
+        await client.messages.create({
+          from: '+19176510742',
+          to: req.body.phoneNumber,
+          body: "Your custom Owlvin Bot is ready! Call 917-651-0742 to get started!"
+        }).then(s => {
+          console.log('MESSAGE RETURN', s);
+        });          
+      } catch (error) {
+        console.error('ERROR!!!!!!!', error);
+      }
+  ////////////////////////////////////////////////////////
 })
 
 app.post('/look-up-assistant', async (req, res) => {
