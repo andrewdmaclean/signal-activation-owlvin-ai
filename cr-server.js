@@ -24,8 +24,8 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 ////// Firebase Stuff /////
 import { getDatabase, ref, update, serverTimestamp, get } from "firebase/database";
 import admin from "firebase-admin";
-import serviceAccount from "./service-account-key.json" assert {type: "json"}; // local
-// import serviceAccount from "/etc/secrets/service-account-key.json" with {type: "json"}; // deployment
+// import serviceAccount from "./service-account-key.json" assert {type: "json"}; // local
+import serviceAccount from "/etc/secrets/service-account-key.json" with {type: "json"}; // deployment
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -194,7 +194,7 @@ app.post('/create-assistant', async (req, res) => {
     try {
         console.log("about to create the message to send!")
         await client.messages.create({
-          from: '+18506695677',
+          from: process.env.FROM_NUMBER,
           to: req.body.phoneNumber,
           body: "Your custom Owlvin Bot is ready! Call 917-651-0742 to get started!"
         }).then(s => {

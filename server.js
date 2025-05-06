@@ -19,8 +19,8 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 ////// Firebase Stuff /////
 import {  ref, get } from "firebase/database";
 import admin from "firebase-admin";
-import serviceAccount from "./service-account-key.json" assert {type: "json"}; // local
-// import serviceAccount from "/etc/secrets/service-account-key.json" with {type: "json"}; // deployment
+// import serviceAccount from "./service-account-key.json" assert {type: "json"}; // local
+import serviceAccount from "/etc/secrets/service-account-key.json" with {type: "json"}; // deployment
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
