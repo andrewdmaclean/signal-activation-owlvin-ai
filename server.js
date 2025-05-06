@@ -98,7 +98,7 @@ app.post('/create-assistant', async (req, res) => {
   let topic = req.body.topic;
   let personality = req.body.personality;
   let tone = req.body.tone;
-  let voiceId;
+  let voiceId = req.body.voiceId;
   switch(tone) {
     case "Technical":
       voiceId = "D9Thk1W7FRMgiOhy3zVI"
