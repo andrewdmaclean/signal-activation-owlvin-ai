@@ -81,10 +81,10 @@ app.post('/voice', async (req, res) => {
   console.log("here's the data: ", data)
 
   const loadingMessage = [
-    "Let me finish up my snack I'll be right there give me 4 seconds",
-    "Oh hello there three second please",
-    "I was not expecting a call let me finish the last of tea and we can talk",
-    "Well I must be popular I will be right with you in a few moments",
+    "Hi there Let me finish up my snack I'll be right there give me 4 seconds",
+    "Hello there three seconds please",
+    "I was not expecting a call let me finish the last of my tea and we can talk",
+    "Well I must be popular my phone is ringing off the hook I will be right with you in a moments",
   ]
 
   connect.conversationRelay({
