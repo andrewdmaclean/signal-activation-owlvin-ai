@@ -80,12 +80,12 @@ app.post('/voice', async (req, res) => {
   let voiceId = data.voiceId;
   console.log("here's the data: ", data)
 
-//   const loadingMessage = [
-//     "Let me finish up my snack I'll be right there",
-//     "Oh hello one second please",
-//     "I was not expecting a call let me finish my tea and we can talk",
-//     "Well I must be popular I will be right with you in a second",
-//   ]
+  const loadingMessage = [
+    "Let me finish up my snack I'll be right there give me 4 seconds",
+    "Oh hello there three second please",
+    "I was not expecting a call let me finish the last of tea and we can talk",
+    "Well I must be popular I will be right with you in a few moments",
+  ]
 
   connect.conversationRelay({
     url: "wss://signal-activation-owlvin-ai.onrender.com/connection",
@@ -93,8 +93,8 @@ app.post('/voice', async (req, res) => {
     ttsProvider: 'Elevenlabs',
     speechModel: "telephony",
     voice: voiceId,
-    // interruptible: "none",
-    // welcomeGreeting: loadingMessage[Math.floor(Math.random() * loadingMessage.length)]
+    interruptible: "none",
+    welcomeGreeting: loadingMessage[Math.floor(Math.random() * loadingMessage.length)]
   });
 
   res.type('text/xml');
