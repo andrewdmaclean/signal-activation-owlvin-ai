@@ -20,6 +20,7 @@ let stage = "dev" // "prod"
 
 const PORT = process.env.PORT || 3001;
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const connections = new Map();
 
 ////// Firebase Stuff /////
 import { ref, get } from "firebase/database";
@@ -43,11 +44,13 @@ function hashPhoneNumber(number) {
 
 app.ws('/connection', (ws) => {
   try {
-    ws.caller;
+
     ws.on('message', async data => { // Incoming message from CR
       const msg = JSON.parse(data);
       console.log("Incoming orcestration: ", msg);
-      ws.caller = msg.from
+      if(msg.from){
+        connections.set(ws, msg.from)
+      }
       console.log("Here is the ws caller info: ", ws.caller)
 
       if (msg.type === "setup") {
@@ -142,15 +145,14 @@ app.ws('/connection', (ws) => {
         }
       }
     })
-    ws.on("close", async (data) => {
-      console.log("Caller number: ", ws.caller)
-      const msg = JSON.parse(data);
-      console.log("outbound orchestration: ", msg);
+    ws.on("close", async () => {
+      const caller = connections.get(ws);
+      console.log("here's the caller data: ", caller)
       ////////////////// Send Text Message ////////////////////
       try {
         await client.messages.create({
           from: process.env.FROM_NUMBER,
-          to: ws.caller,
+          to: caller,
           body: `Dear creator, feel free to call me back anytime!\n(415)704-6756`
         }).then(s => {
           console.log('message sent');
@@ -159,6 +161,7 @@ app.ws('/connection', (ws) => {
         console.error('ERROR!!!!!!!', error);
       }
       //////////////////////////////////////////////////////////
+      connections.delete(ws)
       console.log("WebSocket connection closed");
     });
 

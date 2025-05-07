@@ -134,8 +134,8 @@ Feel free to discuss anything discussed in previous chats.`
     assistant = await openai.beta.assistants.create({
       name: `signal_activation_${userId}`,
       instructions: prompt,
-      model: "gpt-4o",
-      temperature: 1.3
+      model: "gpt-4o-mini",
+      temperature: 0.75
     });
   } catch (err) {
     console.error("Issue creating profile: ", err);
