@@ -43,7 +43,7 @@ function hashPhoneNumber(number) {
 
 app.ws('/connection', (ws) => {
   try {
-
+    ws.caller;
     ws.on('message', async data => { // Incoming message from CR
       const msg = JSON.parse(data);
       console.log("Incoming orcestration: ", msg);
@@ -142,8 +142,10 @@ app.ws('/connection', (ws) => {
         }
       }
     })
-    ws.on("close", async () => {
+    ws.on("close", async (data) => {
       console.log("Caller number: ", ws.caller)
+      const msg = JSON.parse(data);
+      console.log("outbound orchestration: ", msg);
       ////////////////// Send Text Message ////////////////////
       try {
         await client.messages.create({
