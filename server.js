@@ -48,6 +48,7 @@ app.ws('/connection', (ws) => {
       const msg = JSON.parse(data);
       console.log("Incoming orcestration: ", msg);
       ws.caller = msg.from
+      console.log("Here is the ws caller info: ", ws.caller)
 
       if (msg.type === "setup") {
         if (stage !== "dev") {
