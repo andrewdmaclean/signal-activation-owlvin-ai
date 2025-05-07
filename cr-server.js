@@ -5,9 +5,6 @@ import ExpressWs from 'express-ws';
 import crypto from 'crypto';
 
 import twilio from 'twilio';
-const accountSid = process.env.TWILIO_ACCOUNT_SID_MESSAGING;
-const authToken = process.env.TWILIO_AUTH_TOKEN_MESSAGING;
-const client = twilio(accountSid, authToken);
 const VoiceResponse = twilio.twiml.VoiceResponse;
 
 const app = express();
@@ -25,7 +22,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 import { getDatabase, ref, update, serverTimestamp, get } from "firebase/database";
 import admin from "firebase-admin";
 // import serviceAccount from "./service-account-key.json" assert {type: "json"}; // local
-import serviceAccount from "/etc/secrets/service-account-key.json" with {type: "json"}; // deployment
+import serviceAccount from "/etc/secrets/service-account-key.json" with { type: "json" }; // deployment
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -52,8 +49,8 @@ async function checkForExistingThread(userId) {
     console.log("data from firebase (cr-server.js): ", data)
     // delete old OpenAI assistant: data.assistantId
     if (data) {
-        await openai.beta.assistants.del(data.assistantId)
-        return data.thread;
+      await openai.beta.assistants.del(data.assistantId)
+      return data.thread;
     } else {
       return false;
     }
@@ -71,13 +68,13 @@ app.post('/voice', async (req, res) => {
 
   // get the voice from firebase:
   let data;
-        try {
-          const userRef = ref(db, `users/${userId}/profile`);
-          const result = await get(userRef)
-          data = result.val();
-        } catch (err) {
-          console.error("Issue pulling user data from firebase: ", err)
-        }
+  try {
+    const userRef = ref(db, `users/${userId}/profile`);
+    const result = await get(userRef)
+    data = result.val();
+  } catch (err) {
+    console.error("Issue pulling user data from firebase: ", err)
+  }
   let voiceId = data.voiceId;
   console.log("here's the data: ", data)
 
@@ -89,13 +86,14 @@ app.post('/voice', async (req, res) => {
   ]
 
   connect.conversationRelay({
-    url: "wss://signal-activation-owlvin-ai.onrender.com/connection",
+    url: "wss://signal-activation-owlvin-ai.onrender.com/connection", //deployed > "wss://6bd61a7d7052.ngrok.app/connection", // dev
     transcriptionProvider: "Google",
     ttsProvider: 'Elevenlabs',
     speechModel: "telephony",
     voice: voiceId,
     interruptible: "none",
-    welcomeGreeting: loadingMessage[Math.floor(Math.random() * loadingMessage.length)]
+    welcomeGreeting: loadingMessage[Math.floor(Math.random() * loadingMessage.length)],
+    welcomeGreetingInterruptible: "none",
   });
 
   res.type('text/xml');
@@ -109,7 +107,7 @@ app.post('/create-assistant', async (req, res) => {
   let personality = req.body.personality;
   let tone = req.body.tone;
   let voiceId;
-  switch(tone) {
+  switch (tone) {
     case "Technical":
       voiceId = "D9Thk1W7FRMgiOhy3zVI"
       break;
@@ -119,11 +117,15 @@ app.post('/create-assistant', async (req, res) => {
     case "Ironic":
       voiceId = "54Cze5LrTSyLgbO6Fhlc"
       break;
-    default:
+    default: // Sarcastic
       voiceId = "5e3JKXK83vvgQqBcdUol"
   }
   console.log("the voiceId selected: ", voiceId)
-  const prompt = `You are a chat bot who will discuss ${topic} with the caller. Never include punctuation or exclamation marks in your responses. You have a very strong ${personality} personality and you incorporate that personality in each response. Never include punctuation or exclamation marks in your responses. Keep reponses short, no more than 2 sentences. Feel free to discuss anything with the caller and feel free to bring up old topics that were discussed in previous chats. Never include punctuation or exclamation marks in your responses. You will initiate the conversation, so based on your personality and topic, start a conversation! Never ever include punctuation in your responses.`
+  const prompt = `You are a chat bot who will discuss ${topic} with the caller. 
+Never include punctuation or exclamation marks in your responses. 
+You have a very strong ${personality} personality and you incorporate that personality in each response. 
+Keep responses short, no more than 1 sentence, and always end each response with a question. 
+Feel free to discuss anything discussed in previous chats.`
 
   /////////// Create a new assistant with OpenAI ////////////////
   let assistant;
@@ -155,7 +157,6 @@ app.post('/create-assistant', async (req, res) => {
   } catch (err) {
     console.error("Issue checking for existing thread: ", err)
   }
-//   console.log("result from thread check: ", thread)
 
   // Check for an existing thread. If one exist, use it. If not, create one.
   if (!thread) {
@@ -189,19 +190,6 @@ app.post('/create-assistant', async (req, res) => {
 
   res.send(200, "good")
 
-//     //////////////// Send Text Message ////////////////////
-    try {
-        await client.messages.create({
-          from: process.env.FROM_NUMBER,
-          to: req.body.phoneNumber,
-          body: "Your custom Owlvin Bot is ready! Call (415)704-6756 to get started!"
-        }).then(s => {
-          console.log('message sent');
-        });          
-      } catch (error) {
-        console.error('ERROR!!!!!!!', error);
-      }
-//   ////////////////////////////////////////////////////////
 })
 
 
