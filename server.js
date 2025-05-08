@@ -14,9 +14,6 @@ app.use(express.urlencoded({ extended: true }));
 ExpressWs(app);
 
 
-///// Flags////
-let stage = "dev" // "prod"
-///////////////
 
 const PORT = process.env.PORT || 3001;
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -53,7 +50,7 @@ app.ws('/connection', (ws) => {
       }
 
       if (msg.type === "setup") {
-        if (stage !== "dev") {
+
           // Find the threadID from firebase
           const phoneNumber = msg.from.slice(2, msg.from.length) // remove the country code (+1)
           let userId = hashPhoneNumber(phoneNumber);
@@ -69,17 +66,14 @@ app.ws('/connection', (ws) => {
           }
 
           console.log("here's the data: ", data)
-        }
+        
 
         // Conversation logic
         if (data) {
-          if (stage === "dev") {
-            ws.threadId = "thread_VNrKk7lFTb68NMjznZa4lrzs"
-            ws.assistantId = "asst_9mFIvkOJwIBAUfeMoQjmQ4rG"
-          } else {
+         
             ws.threadId = data.thread.id;
             ws.assistantId = data.assistantId;
-          }
+          
 
           // Pretend the user starts the conversation
           await openai.beta.threads.messages.create(ws.threadId, {
