@@ -87,9 +87,9 @@ app.post('/voice', async (req, res) => {
 
   connect.conversationRelay({
     url: "wss://signal-activation-owlvin-ai.onrender.com/connection", //deployed > "wss://6bd61a7d7052.ngrok.app/connection", // dev
-    transcriptionProvider: "Google",
     ttsProvider: 'Elevenlabs',
-    speechModel: "telephony",
+    transcriptionProvider: "Deepgram",
+    speechModel: "nova-2-general",
     voice: voiceId,
     interruptible: "none",
     welcomeGreeting: loadingMessage[Math.floor(Math.random() * loadingMessage.length)],

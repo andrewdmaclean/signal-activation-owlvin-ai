@@ -51,7 +51,6 @@ app.ws('/connection', (ws) => {
       if(msg.from){
         connections.set(ws, msg.from)
       }
-      console.log("Here is the ws caller info: ", ws.caller)
 
       if (msg.type === "setup") {
         if (stage !== "dev") {
