@@ -86,7 +86,7 @@ app.post('/voice', async (req, res) => {
   ]
 
   connect.conversationRelay({
-    url: "wss://signal-activation-owlvin-ai.onrender.com/connection", //deployed > "wss://6bd61a7d7052.ngrok.app/connection", // dev
+    url: "wss://owlvin-ai-server-js-692351747341.us-west1.run.app/connection", //deployed > "wss://6bd61a7d7052.ngrok.app/connection", // dev
     ttsProvider: 'Elevenlabs',
     transcriptionProvider: "Deepgram",
     speechModel: "nova-2-general",
