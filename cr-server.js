@@ -62,7 +62,7 @@ async function checkForExistingThread(userId) {
 app.post('/voice', async (req, res) => {
   const response = new VoiceResponse();
   const connect = response.connect();
-  const caller = req.body.From.slice(2)
+  const caller = req.body.From
   console.log("caller: ", caller)
   const userId = hashPhoneNumber(caller)
 
