@@ -54,9 +54,10 @@ app.post('/voice', async (req, res) => {
 
   if(!data){
     // tell caller to create a bot first
-    response.say("Hm, we can't seem to find an AI agent under this phone number. Please try creating a bot and with the phone number used to make this call.");
-    response.type('text/xml');
-    response.end(response.toString());
+    let failResponse = new VoiceResponse();
+    failResponse.say("Hm, we can't seem to find an AI agent under this phone number. Please play Owlvin and create a bot with the phone number used to make this call.");
+    res.writeHead(200, {'Content-Type': 'text/xml'});
+    res.end(failResponse.toString());
     return;
   }
   let voiceId = data.voiceId;
