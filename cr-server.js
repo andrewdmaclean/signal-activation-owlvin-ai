@@ -19,8 +19,8 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 ////// Firebase Stuff /////
 import { getDatabase, ref, update, serverTimestamp, get } from "firebase/database";
 import admin from "firebase-admin";
-import serviceAccount from "./service-account-key.json" assert {type: "json"}; // local
-// import serviceAccount from "/etc/secrets/service-account-key.json" with { type: "json" }; // deployment
+// import serviceAccount from "./service-account-key.json" assert {type: "json"}; // local
+import serviceAccount from "/etc/secrets/service-account-key.json" with { type: "json" }; // deployment
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -64,7 +64,7 @@ app.post('/voice', async (req, res) => {
   console.log("here's the data: ", data)
 
   connect.conversationRelay({
-    url: /*"wss://owlvin-ai-server-js-692351747341.us-west1.run.app/connection", //deployed >*/ "wss://6bd61a7d7052.ngrok.app/connection", // dev
+    url: "wss://owlvin-ai-server-js-692351747341.us-west1.run.app/connection", //deployed > "wss://6bd61a7d7052.ngrok.app/connection", // dev
     ttsProvider: 'Elevenlabs',
     transcriptionProvider: "Deepgram",
     speechModel: "nova-3-general",
