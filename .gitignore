@@ -143,3 +143,8 @@ service-account-key.json
 package-lock.json
 
 db/
+
+
+# ElevenLabs Latency Results for Voices
+test-latency.js
+voice_latency_results-1.json

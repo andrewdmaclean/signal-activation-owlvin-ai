@@ -13,16 +13,14 @@ app.use(express.urlencoded({ extended: true }));
 ExpressWs(app);
 
 
-///////////////
-
 const PORT = process.env.PORT || 3002;
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 ////// Firebase Stuff /////
 import { getDatabase, ref, update, serverTimestamp, get } from "firebase/database";
 import admin from "firebase-admin";
-// import serviceAccount from "./service-account-key.json" assert {type: "json"}; // local
-import serviceAccount from "/etc/secrets/service-account-key.json" with { type: "json" }; // deployment
+import serviceAccount from "./service-account-key.json" assert {type: "json"}; // local
+// import serviceAccount from "/etc/secrets/service-account-key.json" with { type: "json" }; // deployment
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -30,33 +28,11 @@ admin.initializeApp({
 });
 
 const db = admin.database(); // Get a database reference
-////////////////////////////////
 
 function hashPhoneNumber(number) {
   const salt = 'apples_are_not_yellow'; // Generate or store a unique salt
   const saltedPhoneNumber = number + salt;
   return crypto.createHash('sha256').update(saltedPhoneNumber).digest('hex');
-}
-
-async function checkForExistingThread(userId) {
-  // Preform query in firebase
-  console.log("in the check for existing thread function, cr-server: ", userId)
-  let data;
-  try {
-    const userRef = ref(db, `users/${userId}/profile`);
-    const result = await get(userRef)
-    const data = result.val()
-    console.log("data from firebase (cr-server.js): ", data)
-    // delete old OpenAI assistant: data.assistantId
-    if (data) {
-      await openai.beta.assistants.del(data.assistantId)
-      return data.thread;
-    } else {
-      return false;
-    }
-  } catch (err) {
-    console.error("Issue pulling user data from firebase: ", err)
-  }
 }
 
 app.post('/voice', async (req, res) => {
@@ -75,25 +51,24 @@ app.post('/voice', async (req, res) => {
   } catch (err) {
     console.error("Issue pulling user data from firebase: ", err)
   }
+
+  if(!data){
+    // tell caller to create a bot first
+    response.say("Hm, we can't seem to find an AI agent under this phone number. Please try creating a bot and with the phone number used to make this call.");
+    response.type('text/xml');
+    response.end(response.toString());
+    return;
+  }
   let voiceId = data.voiceId;
   console.log("here's the data: ", data)
 
-  const loadingMessage = [
-    "Hi there Let me finish up my snack I'll be right there give me 4 seconds",
-    "Hello there three seconds please",
-    "Let me finish the last of my tea and then we can talk",
-    "Well well I must be popular my phone is ringing off the hook I will be right with you in a moment",
-  ]
-
   connect.conversationRelay({
-    url: "wss://owlvin-ai-server-js-692351747341.us-west1.run.app/connection", //deployed > "wss://6bd61a7d7052.ngrok.app/connection", // dev
+    url: /*"wss://owlvin-ai-server-js-692351747341.us-west1.run.app/connection", //deployed >*/ "wss://6bd61a7d7052.ngrok.app/connection", // dev
     ttsProvider: 'Elevenlabs',
     transcriptionProvider: "Deepgram",
-    speechModel: "nova-2-general",
+    speechModel: "nova-3-general",
     voice: voiceId,
     interruptible: "none",
-    welcomeGreeting: loadingMessage[Math.floor(Math.random() * loadingMessage.length)],
-    welcomeGreetingInterruptible: "none",
   });
 
   res.type('text/xml');
@@ -109,71 +84,24 @@ app.post('/create-assistant', async (req, res) => {
   let voiceId;
   switch (tone) {
     case "Technical":
-      voiceId = "D9Thk1W7FRMgiOhy3zVI"
+      voiceId = "6xPz2opT0y5qtoRh1U1Y" // 905ms Middle aged American male voice. Good for clear narration. 
       break;
     case "Casual":
-      voiceId = "IjnA9kwZJHJ20Fp7Vmy6"
+      voiceId = "pPdl9cQBQq4p6mRkZy2Z"  // 948ms An adorable voice perfect for animation projects.
       break;
     case "Ironic":
-      voiceId = "54Cze5LrTSyLgbO6Fhlc"
+      voiceId = "9yzdeviXkFddZ4Oz8Mok" // n/a Young American male voice cheerfully cracking up. Perfect for humorous dialogues and happy characters. Voice was created reading jokes and funny literature.
       break;
     default: // Sarcastic
-      voiceId = "5e3JKXK83vvgQqBcdUol"
+      voiceId = "mZ8K1MPRiT5wDQaasg3i" // 897ms A British studio quality voice with a neutral, warm English accent, great for TV, Voiceover, Explainer videos, Advertising and Social Media.
   }
   console.log("the voiceId selected: ", voiceId)
-  const prompt = `You are a chat bot who will discuss ${topic} with the caller. 
-Never include punctuation or exclamation marks in your responses. 
-You have a very strong ${personality} personality and you incorporate that personality in each response. 
-Keep responses short, no more than 1 sentence, and always end each response with a question. 
-Feel free to discuss anything discussed in previous chats.`
-
-  /////////// Create a new assistant with OpenAI ////////////////
-  let assistant;
-
-  try {
-    assistant = await openai.beta.assistants.create({
-      name: `signal_activation_${userId}`,
-      instructions: prompt,
-      model: "gpt-4o-mini",
-      temperature: 0.75
-    });
-  } catch (err) {
-    console.error("Issue creating profile: ", err);
-    return res.status(500).send("Issue creating assistant");
-  }
-
-  if (!assistant || !assistant.id) {
-    console.log("Assistant ID not immediately available. Waiting...");
-    await new Promise(resolve => setTimeout(resolve, 2000));
-  }
-  const assistantId = assistant.id;
-  /////////////////////////////////////////////////////////
-
-
-  ///////// Thread Check Logic //////////////////////////////
-  let thread;
-  try {
-    thread = await checkForExistingThread(userId)
-  } catch (err) {
-    console.error("Issue checking for existing thread: ", err)
-  }
-
-  // Check for an existing thread. If one exist, use it. If not, create one.
-  if (!thread) {
-    try {
-      thread = await openai.beta.threads.create();
-      console.log("new thread created")
-    } catch (err) {
-      console.error("issue creating thread: ", err)
-    }
-  }
-  ////////////////////////////////////////////////////////////
 
   const dbRef = ref(db);
   const path = `users/${userId}/profile/`
   const profileDetails = {
-    assistantId,
-    thread,
+    personality,
+    topic,
     lastUsed: serverTimestamp(),
     active: true,
     voiceId
@@ -189,8 +117,7 @@ Feel free to discuss anything discussed in previous chats.`
   }
 
   res.send(200, "good")
-
-})
+});
 
 
 app.listen(PORT, () => {

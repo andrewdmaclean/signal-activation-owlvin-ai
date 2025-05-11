@@ -18,12 +18,13 @@ ExpressWs(app);
 const PORT = process.env.PORT || 3001;
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const connections = new Map();
+const messageHistories = new Map();
 
 ////// Firebase Stuff /////
 import { ref, get } from "firebase/database";
 import admin from "firebase-admin";
-// import serviceAccount from "./service-account-key.json" assert {type: "json"}; // local
-import serviceAccount from "/etc/secrets/service-account-key.json" with {type: "json"}; // deployment
+import serviceAccount from "./service-account-key.json" assert {type: "json"}; // local
+// import serviceAccount from "/etc/secrets/service-account-key.json" with {type: "json"}; // deployment
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -39,105 +40,115 @@ function hashPhoneNumber(number) {
   return crypto.createHash('sha256').update(saltedPhoneNumber).digest('hex');
 }
 
-app.ws('/connection', (ws) => {
+async function generatePrompt (msg){
+  /**
+       * Hash the incoming phone number to grab personality and topic from firebase.
+       * Since threads are not used, history is not stored in threads and no assistants are used.
+       */
+  const userId = hashPhoneNumber(msg.from);
+  let data;
   try {
+    const userRef = ref(db, `users/${userId}/profile`);
+    const result = await get(userRef)
+    data = result.val();
+    console.log("here's the data from friebase: ", data)
+  } catch (err) {
+    console.error("error connecting to firebase: ", err)
+  }
 
-    ws.on('message', async data => { // Incoming message from CR
+  const topic = data.topic;
+  const personality = data.personality;
+
+  const prompt = `You are a chat bot who will discuss ${topic} with the caller. 
+Never include punctuation or exclamation marks in your responses. 
+You have a very strong ${personality} personality and you incorporate that personality in each response. 
+Keep responses short, no more than 15 words, and always end each response with a question. 
+Feel free to discuss anything discussed previously in the chat.`
+
+return prompt;
+  ////////////////////////////////////////////////////////////////////////////////////////////////////
+}
+
+app.ws('/connection', async (ws) => {
+  // The following code uses OpenAI streaming
+  try {
+    ws.on('message', async (data) => {
       const msg = JSON.parse(data);
-      console.log("Incoming orcestration: ", msg);
-      if(msg.from){
-        connections.set(ws, msg.from)
+      console.log("Incoming message:", msg);
+
+      // Set phone number in ws var
+      if (msg.from) {
+        connections.set(ws, msg.from);
       }
 
+      /**
+       * Create a conversation thread. Include the prompt for instruction and first user message so agent
+       * so it feels like the agent is starting a conversation with the user.
+       */
+
+      const history = [];
+      ////////////////////////////////////////////////////////////////////////////////////////////////////
+
       if (msg.type === "setup") {
+        let prompt = await generatePrompt(msg);
+        console.log(prompt)
 
-          // Find the threadID from firebase
-          const phoneNumber = msg.from.slice(2, msg.from.length) // remove the country code (+1)
-          let userId = hashPhoneNumber(phoneNumber);
+        messageHistories.set(ws, history); // ws Map
 
-          // Preform query in firebase
-          let data;
-          try {
-            const userRef = ref(db, `users/${userId}/profile`);
-            const result = await get(userRef)
-            data = result.val();
-          } catch (err) {
-            console.error("Issue pulling user data from firebase: ", err)
-          }
+        history.push(
+          {
+            role: "system", content: prompt
+          },
+          { role: "user", content: "Hi there!" }
+        )
 
-          console.log("here's the data: ", data)
-        
+        console.log("history, line 102: ", history);
 
-        // Conversation logic
-        if (data) {
-         
-            ws.threadId = data.thread.id;
-            ws.assistantId = data.assistantId;
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4.1-nano",
+          messages: history,
+          stream: false
+        });
+
+        const assistantMessage = completion.choices[0]?.message.content;
+        console.log("[setup] here's the completion data: ", assistantMessage)
+        history.push(assistantMessage);
+        console.log("here's the history: ", history)
+
+        ws.send(JSON.stringify({
+          type: "text",
+          token: assistantMessage
+        }));
+
+      } else if (msg.type === "prompt") {
+
+        try {
+          history.push({
+            role: 'user',
+            content: JSON.stringify(msg.voicePrompt),
+          });
+
+          const completion = await openai.chat.completions.create({
+            model: "gpt-4.1-nano",
+            messages: history,
+            stream: false
+          });
+
+          const assistantMessage = completion.choices[0]?.message.content;
+          history.push(assistantMessage);
           
-
-          // Pretend the user starts the conversation
-          await openai.beta.threads.messages.create(ws.threadId, {
-            role: "user",
-            content: "Hi there!"
-          });
-
-
-          const run = openai.beta.threads.runs.stream(ws.threadId, {
-            assistant_id: ws.assistantId
-          });
-
-          run.on('textDone', async (textDone, snapshot) => {
-            // Send response from OpenAI model to Conversation Relay to be read back to the caller
-            console.log("textdone: ", textDone)
-
-            ws.send(
-              JSON.stringify({
-                type: "text",
-                token: textDone.value
-              })
-            )
-            // console.log("after")
-          })
-        }
-      } else if (msg.type === "prompt") { // A user begins speaking
-        // Make sure a thread isn't running
-
-        if (ws.runInProgress) {
-          console.warn("Run already in progress; ignoring new prompt");
-          return;
-        }
-        ws.runInProgress = true; // run flag MUST BE AFTER THE CHECK
-
-        try { // if nothing's running
-          // Add message to the thread
-          await openai.beta.threads.messages.create(ws.threadId, {
-            role: "user",
-            content: msg.voicePrompt
-          });
-
-          // run the thread
-          const run = openai.beta.threads.runs.stream(ws.threadId, {
-            assistant_id: ws.assistantId
-          });
-
-          run.on('textDone', (textDone) => {
-            ws.send(JSON.stringify({
-              type: "text",
-              token: textDone.value
-            }));
-            console.log("textDone: ", textDone);
-          });
-
-          run.on('runStepDone', () => {
-            ws.runInProgress = false; // Clear run flag when done
-          });
+          console.log("[prompt] here's the completion data: ", assistantMessage)
+          
+          ws.send(JSON.stringify({
+            type: "text",
+            token: assistantMessage
+          }));
 
         } catch (err) {
-          ws.runInProgress = false;
           console.error("Run failed:", err);
         }
       }
-    })
+    });
     ws.on("close", async () => {
       const caller = connections.get(ws);
       console.log("here's the caller data: ", caller)
@@ -157,13 +168,10 @@ app.ws('/connection', (ws) => {
       connections.delete(ws)
       console.log("WebSocket connection closed");
     });
-
   } catch (err) {
-    console.error("ERROR: ", err);
+    console.log(err);
   }
 });
-
-
 
 
 app.listen(PORT, () => {
