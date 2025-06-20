@@ -104,19 +104,39 @@ app.post('/create-assistant', async (req, res) => {
   let topic = req.body.topic;
   let personality = req.body.personality;
   let tone = req.body.tone;
+  let locale = req.body.locale;
+
   let voiceId;
-  switch (tone) {
-    case "Technical":
-      voiceId = "6xPz2opT0y5qtoRh1U1Y" // 905ms Middle aged American male voice. Good for clear narration. 
-      break;
-    case "Casual":
-      voiceId = "pPdl9cQBQq4p6mRkZy2Z"  // 948ms An adorable voice perfect for animation projects.
-      break;
-    case "Ironic":
-      voiceId = "9yzdeviXkFddZ4Oz8Mok" // n/a Young American male voice cheerfully cracking up. Perfect for humorous dialogues and happy characters. Voice was created reading jokes and funny literature.
-      break;
-    default: // Sarcastic
-      voiceId = "mZ8K1MPRiT5wDQaasg3i" // 897ms A British studio quality voice with a neutral, warm English accent, great for TV, Voiceover, Explainer videos, Advertising and Social Media.
+  if (locale === "pt") {
+    // Portuguese voices
+    switch (tone) {
+      case "Technical":
+        voiceId = "ylkAmqCrRDIZwbkOGyJe"; // Wlademir - Deep Brazilian Male
+        break;
+      case "Casual":
+        voiceId = "iScHbNW8K33gNo3lGgbo"; // Marianne
+        break;
+      case "Ironic":
+        voiceId = "l88WmPeLH7L0O0VA9lqm"; // Lax2
+        break;
+      default: // Sarcastic
+        voiceId = "mPDAoQyGzxBSkE0OAOKw"; // Carla - Authority VSL
+    }
+  } else {
+    // English voices
+    switch (tone) {
+      case "Technical":
+        voiceId = "6xPz2opT0y5qtoRh1U1Y"; // 905ms Middle aged American male voice. Good for clear narration. 
+        break;
+      case "Casual":
+        voiceId = "pPdl9cQBQq4p6mRkZy2Z";  // 948ms An adorable voice perfect for animation projects.
+        break;
+      case "Ironic":
+        voiceId = "9yzdeviXkFddZ4Oz8Mok"; // n/a Young American male voice cheerfully cracking up. Perfect for humorous dialogues and happy characters. Voice was created reading jokes and funny literature.
+        break;
+      default: // Sarcastic
+        voiceId = "mZ8K1MPRiT5wDQaasg3i"; // 897ms A British studio quality voice with a neutral, warm English accent, great for TV, Voiceover, Explainer videos, Advertising and Social Media.
+    }
   }
   console.log("the voiceId selected: ", voiceId)
 

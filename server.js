@@ -79,17 +79,24 @@ async function generatePrompt(msg) {
 
   const topic = data.topic;
   const personality = data.personality;
+  const locale = data.locale;
 
-  const prompt = `IMPORTANT: Your response must be 15 words or less no punctuation always end with a question
+  const languageInstruction =
+    locale === "pt"
+      ? "IMPORTANT: Always respond only in Brazilian Portuguese"
+      : "IMPORTANT: Always respond only in English";
+
+  const prompt = `${languageInstruction}
+IMPORTANT: Your response must be 15 words or less no punctuation always end with a question
 You are a chat bot who will discuss ${topic} with the caller
 You have a very strong ${personality} personality and you incorporate that personality in each response
 Never include punctuation or exclamation marks in your responses
 Keep responses short no more than 15 words and always end each response with a question
 If you cannot answer in 15 words or less say I can only answer in 15 words or less Please rephrase
-IMPORTANT: Your response must be 15 words or less no punctuation always end with a question
 Feel free to discuss anything discussed previously in the chat`;
 
   return prompt;
+
   ////////////////////////////////////////////////////////////////////////////////////////////////////
 }
 
@@ -169,6 +176,13 @@ app.ws("/connection", async (ws) => {
       const callerInfo = connections.get(ws);
       let toNumber = callerInfo?.number;
       let fromNumber = process.env.FROM_NUMBER;
+
+      // choose message by locale (defaults to en)
+      const closingBody =
+        callerInfo.locale === "pt"
+          ? "Caro criador sinta-se à vontade para me ligar de volta a qualquer momento"
+          : "Dear creator feel free to call me back anytime";
+
       if (callerInfo && callerInfo.isWhatsapp) {
         toNumber = `whatsapp:${toNumber}`;
         fromNumber = `whatsapp:${fromNumber}`;
@@ -177,7 +191,7 @@ app.ws("/connection", async (ws) => {
         await client.messages.create({
           from: fromNumber,
           to: toNumber,
-          body: `Dear creator, feel free to call me back anytime!`,
+          body: closingBody,
         });
         console.log("message sent");
       } catch (error) {
