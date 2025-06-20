@@ -192,7 +192,7 @@ app.ws("/connection", async (ws) => {
       const locale = data.locale;
       // choose message by locale (defaults to en)
       const closingBody =
-        callerInfo.locale === "pt"
+        locale === "pt"
           ? "Caro criador sinta-se à vontade para me ligar de volta a qualquer momento"
           : "Dear creator feel free to call me back anytime";
 
