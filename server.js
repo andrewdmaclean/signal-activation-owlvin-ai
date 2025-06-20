@@ -177,6 +177,17 @@ app.ws("/connection", async (ws) => {
       let toNumber = callerInfo?.number;
       let fromNumber = process.env.FROM_NUMBER;
 
+      let data;
+      try {
+        const userRef = ref(db, `users/${userId}/profile`);
+        const result = await get(userRef);
+        data = result.val();
+      } catch (err) {
+        console.error("error connecting to firebase on close: ", err);
+        data = {};
+      }
+
+      const locale = data.locale;
       // choose message by locale (defaults to en)
       const closingBody =
         callerInfo.locale === "pt"
