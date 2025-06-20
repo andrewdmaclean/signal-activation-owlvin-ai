@@ -176,12 +176,14 @@ app.ws('/connection', async (ws) => {
     ws.on("close", async () => {
       const callerInfo = connections.get(ws);
       let toNumber = callerInfo?.number;
-      if (callerInfo?.isWhatsapp) {
+      let fromNumber = process.env.FROM_NUMBER;
+      if (callerInfo && callerInfo.isWhatsapp) {
         toNumber = `whatsapp:${toNumber}`;
+        fromNumber = `whatsapp:${fromNumber}`;
       }
       try {
         await client.messages.create({
-          from: process.env.FROM_NUMBER,
+          from: fromNumber,
           to: toNumber,
           body: `Dear creator, feel free to call me back anytime!\n(415)704-6756`
         });
