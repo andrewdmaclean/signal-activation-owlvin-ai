@@ -46,6 +46,16 @@ admin.initializeApp({
 const db = admin.database(); // Get a database reference
 ////////////////////////////////
 
+function extractPhoneInfo(rawNumber) {
+  let isWhatsapp = false;
+  let number = rawNumber;
+  if (number && number.startsWith('whatsapp:')) {
+    isWhatsapp = true;
+    number = number.replace('whatsapp:', '');
+  }
+  return { number, isWhatsapp };
+}
+
 function hashPhoneNumber(number) {
   const salt = 'apples_are_not_yellow';
   const saltedPhoneNumber = number + salt;
@@ -57,7 +67,8 @@ async function generatePrompt (msg){
        * Hash the incoming phone number to grab personality and topic from firebase.
        * Since threads are not used, history is not stored in threads and no assistants are used.
        */
-  const userId = hashPhoneNumber(msg.from);
+  const { number: cleanNumber, isWhatsapp } = extractPhoneInfo(msg.from);
+  const userId = hashPhoneNumber(cleanNumber);
   let data;
   try {
     const userRef = ref(db, `users/${userId}/profile`);
@@ -90,7 +101,8 @@ app.ws('/connection', async (ws) => {
 
       // Set phone number in ws var
       if (msg.from) {
-        connections.set(ws, msg.from);
+        const { number: cleanNumber, isWhatsapp } = extractPhoneInfo(msg.from);
+        connections.set(ws, { number: cleanNumber, isWhatsapp });
       }
 
       /**
@@ -162,22 +174,22 @@ app.ws('/connection', async (ws) => {
       }
     });
     ws.on("close", async () => {
-      const caller = connections.get(ws);
-      console.log("here's the caller data: ", caller)
-      ////////////////// Send Text Message ////////////////////
+      const callerInfo = connections.get(ws);
+      let toNumber = callerInfo?.number;
+      if (callerInfo?.isWhatsapp) {
+        toNumber = `whatsapp:${toNumber}`;
+      }
       try {
         await client.messages.create({
           from: process.env.FROM_NUMBER,
-          to: caller,
+          to: toNumber,
           body: `Dear creator, feel free to call me back anytime!\n(415)704-6756`
-        }).then(s => {
-          console.log('message sent');
         });
+        console.log('message sent');
       } catch (error) {
         console.error('ERROR!!!!!!!', error);
       }
-      //////////////////////////////////////////////////////////
-      connections.delete(ws)
+      connections.delete(ws);
       console.log("WebSocket connection closed");
     });
   } catch (err) {

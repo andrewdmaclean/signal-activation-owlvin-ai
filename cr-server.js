@@ -41,6 +41,16 @@ admin.initializeApp({
 
 const db = admin.database(); // Get a database reference
 
+function extractPhoneInfo(rawNumber) {
+  let isWhatsapp = false;
+  let number = rawNumber;
+  if (number && number.startsWith('whatsapp:')) {
+    isWhatsapp = true;
+    number = number.replace('whatsapp:', '');
+  }
+  return { number, isWhatsapp };
+}
+
 function hashPhoneNumber(number) {
   const salt = 'apples_are_not_yellow'; // Generate or store a unique salt
   const saltedPhoneNumber = number + salt;
@@ -50,9 +60,9 @@ function hashPhoneNumber(number) {
 app.post('/voice', async (req, res) => {
   const response = new VoiceResponse();
   const connect = response.connect();
-  const caller = req.body.From
-  console.log("caller: ", caller)
-  const userId = hashPhoneNumber(caller)
+  const { number: cleanNumber, isWhatsapp } = extractPhoneInfo(req.body.From);
+  console.log("caller: ", cleanNumber, "isWhatsapp:", isWhatsapp);
+  const userId = hashPhoneNumber(cleanNumber)
 
   // get the voice from firebase:
   let data;
