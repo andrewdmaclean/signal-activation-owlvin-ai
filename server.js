@@ -177,6 +177,8 @@ app.ws("/connection", async (ws) => {
       let toNumber = callerInfo?.number;
       let fromNumber = process.env.FROM_NUMBER;
 
+      // Fetch locale/profile from Firebase again
+      const userId = hashPhoneNumber(toNumber);
       let data;
       try {
         const userRef = ref(db, `users/${userId}/profile`);
