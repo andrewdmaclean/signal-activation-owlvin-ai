@@ -147,7 +147,8 @@ app.post('/create-assistant', async (req, res) => {
     topic,
     lastUsed: serverTimestamp(),
     active: true,
-    voiceId
+    voiceId,
+    locale
   }
 
   try {
