@@ -38,10 +38,10 @@ const serviceAccount = {
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL: process.env.FIREBASE_DB_URL,
+  databaseURL: process.env.FIREBASE_DB_URL, // database URL
 });
 
-const db = admin.database();
+const db = admin.database(); // Get a database reference
 ////////////////////////////////
 
 function extractPhoneInfo(rawNumber) {
@@ -56,13 +56,15 @@ function extractPhoneInfo(rawNumber) {
 
 function hashPhoneNumber(number) {
   const salt = "apples_are_not_yellow";
-  return crypto
-    .createHash("sha256")
-    .update(number + salt)
-    .digest("hex");
+  const saltedPhoneNumber = number + salt;
+  return crypto.createHash("sha256").update(saltedPhoneNumber).digest("hex");
 }
 
 async function generatePrompt(msg) {
+  /**
+   * Hash the incoming phone number to grab personality and topic from firebase.
+   * Since threads are not used, history is not stored in threads and no assistants are used.
+   */
   const { number: cleanNumber, isWhatsapp } = extractPhoneInfo(msg.from);
   const userId = hashPhoneNumber(cleanNumber);
   let data;
@@ -70,129 +72,162 @@ async function generatePrompt(msg) {
     const userRef = ref(db, `users/${userId}/profile`);
     const result = await get(userRef);
     data = result.val();
+    console.log("here's the data from friebase: ", data);
   } catch (err) {
     console.error("error connecting to firebase: ", err);
   }
 
-  const { topic, personality, locale } = data || {};
+  const topic = data.topic;
+  const personality = data.personality;
+  const locale = data.locale;
+
   const languageInstruction =
     locale === "pt"
       ? "IMPORTANT: Always respond only in Brazilian Portuguese"
       : "IMPORTANT: Always respond only in English";
 
-  return `
-${languageInstruction}
+  const prompt = `${languageInstruction}
 IMPORTANT: Your response must be 15 words or less no punctuation always end with a question
 You are a chat bot who will discuss ${topic} with the caller
 You have a very strong ${personality} personality and you incorporate that personality in each response
 Never include punctuation or exclamation marks in your responses
 Keep responses short no more than 15 words and always end each response with a question
 If you cannot answer in 15 words or less say I can only answer in 15 words or less Please rephrase
-Feel free to discuss anything discussed previously in the chat`.trim();
+Feel free to discuss anything discussed previously in the chat`;
+
+  return prompt;
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////////
 }
 
-app.ws("/connection", (ws) => {
-  ws.on("message", async (data) => {
-    const msg = JSON.parse(data);
-    let history = messageHistories.get(ws) || [];
-    messageHistories.set(ws, history);
+app.ws("/connection", async (ws) => {
+  // The following code uses OpenAI streaming
+  try {
+    ws.on("message", async (data) => {
+      const msg = JSON.parse(data);
+      console.log("Incoming message:", msg);
 
-    if (msg.from) {
-      const { number, isWhatsapp } = extractPhoneInfo(msg.from);
-      connections.set(ws, { number, isWhatsapp });
-    }
-
-    if (msg.type === "setup") {
-      const prompt = await generatePrompt(msg);
-      history.push(
-        { role: "system", content: prompt },
-        { role: "user", content: "Hi there!" }
-      );
-
-      // ↓ DROP the extra await when using v4 client
-      const completion = openai.chat.completions.create({
-        model: "gpt-4.1-nano",
-        messages: history,
-        stream: true,
-      });
-
-      let assistantMessage = "";
-      for await (const chunk of completion) {
-        const content = chunk.choices[0]?.delta?.content || "";
-        const isLast = chunk.choices[0]?.finish_reason !== null;
-        if (content) {
-          assistantMessage += content;
-          ws.send(JSON.stringify({ type: "text", token: content, last: isLast }));
-        } else if (isLast) {
-          ws.send(JSON.stringify({ type: "text", token: "", last: true }));
-        }
+      // Retrieve or initialize this connection's history
+      let history = messageHistories.get(ws);
+      if (!history) {
+        history = [];
+        messageHistories.set(ws, history);
       }
 
-      history.push({ role: "assistant", content: assistantMessage });
-    } else if (msg.type === "prompt") {
-      history.push({ role: "user", content: JSON.stringify(msg.voicePrompt) });
-
-      // ↓ DROP the extra await here too
-      const completion = openai.chat.completions.create({
-        model: "gpt-4.1-nano",
-        messages: history,
-        stream: true,
-      });
-
-      let assistantMessage = "";
-      for await (const chunk of completion) {
-        const content = chunk.choices[0]?.delta?.content || "";
-        const isLast = chunk.choices[0]?.finish_reason !== null;
-        if (content) {
-          assistantMessage += content;
-          ws.send(JSON.stringify({ type: "text", token: content, last: isLast }));
-        } else if (isLast) {
-          ws.send(JSON.stringify({ type: "text", token: "", last: true }));
-        }
+      // Set phone number in ws var
+      if (msg.from) {
+        const { number: cleanNumber, isWhatsapp } = extractPhoneInfo(msg.from);
+        connections.set(ws, { number: cleanNumber, isWhatsapp });
       }
 
-      history.push({ role: "assistant", content: assistantMessage });
-    }
-  });
+      /**
+       * Create a conversation thread. Include the prompt for instruction and first user message so agent
+       * so it feels like the agent is starting a conversation with the user.
+       */
+      ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  ws.on("close", async () => {
-    const callerInfo = connections.get(ws) || {};
-    let toNumber = callerInfo.number;
-    let fromNumber = process.env.FROM_NUMBER;
+      if (msg.type === "setup") {
+        let prompt = await generatePrompt(msg);
+        console.log(prompt);
+        console.log("System prompt:", prompt);
 
-    const userId = hashPhoneNumber(toNumber);
-    let data;
-    try {
-      const userRef = ref(db, `users/${userId}/profile`);
-      const result = await get(userRef);
-      data = result.val();
-    } catch (err) {
-      console.error("error connecting to firebase on close: ", err);
-    }
+        history.push(
+          { role: "system", content: prompt },
+          { role: "user", content: "Hi there!" }
+        );
 
-    const locale = (data && data.locale) || "en";
-    const closingBody =
-      locale === "pt"
-        ? "Caro criador sinta-se à vontade para me ligar de volta a qualquer momento"
-        : "Dear creator feel free to call me back anytime";
+        console.log("History after setup:", history);
 
-    if (callerInfo.isWhatsapp) {
-      toNumber = `whatsapp:${toNumber}`;
-      fromNumber = `whatsapp:${fromNumber}`;
-    }
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4.1-nano",
+          messages: history,
+          stream: true,
+        });
 
-    try {
-      await client.messages.create({
-        from: fromNumber,
-        to: toNumber,
-        body: closingBody,
-      });
-    } catch (error) {
-      console.error("Error sending closing message:", error);
-    }
+        let assistantMessage = "";
+        for await (const chunk of completion) {
+          const content = chunk.choices[0]?.delta?.content || "";
+          if (content) {
+            assistantMessage += content;
+            ws.send(JSON.stringify({ type: "text", token: content }));
+          }
+        }
+        
+        console.log("[setup] Assistant:", assistantMessage);
+        history.push({ role: "assistant", content: assistantMessage });
+      } else if (msg.type === "prompt") {
+        try {
+          history.push({
+            role: "user",
+            content: JSON.stringify(msg.voicePrompt),
+          });
 
-    connections.delete(ws);
-  });
+          const completion = await openai.chat.completions.create({
+            model: "gpt-4.1-nano",
+            messages: history,
+            stream: true,
+          });
+
+          let assistantMessage = "";
+          for await (const chunk of completion) {
+            const content = chunk.choices[0]?.delta?.content || "";
+            if (content) {
+              assistantMessage += content;
+              ws.send(JSON.stringify({ type: "text", token: content }));
+            }
+          }
+          
+          console.log("[prompt] Assistant:", assistantMessage);
+          history.push({ role: "assistant", content: assistantMessage });
+        } catch (err) {
+          console.error("Run failed:", err);
+        }
+      }
+    });
+    ws.on("close", async () => {
+      const callerInfo = connections.get(ws);
+      let toNumber = callerInfo?.number;
+      let fromNumber = process.env.FROM_NUMBER;
+
+      // Fetch locale/profile from Firebase again
+      const userId = hashPhoneNumber(toNumber);
+      let data;
+      try {
+        const userRef = ref(db, `users/${userId}/profile`);
+        const result = await get(userRef);
+        data = result.val();
+      } catch (err) {
+        console.error("error connecting to firebase on close: ", err);
+        data = {};
+      }
+
+      const locale = data.locale;
+      // choose message by locale (defaults to en)
+      const closingBody =
+        locale === "pt"
+          ? "Caro criador sinta-se à vontade para me ligar de volta a qualquer momento"
+          : "Dear creator feel free to call me back anytime";
+
+      if (callerInfo && callerInfo.isWhatsapp) {
+        toNumber = `whatsapp:${toNumber}`;
+        fromNumber = `whatsapp:${fromNumber}`;
+      }
+      try {
+        await client.messages.create({
+          from: fromNumber,
+          to: toNumber,
+          body: closingBody,
+        });
+        console.log("message sent");
+      } catch (error) {
+        console.error("ERROR!!!!!!!", error);
+      }
+      connections.delete(ws);
+      console.log("WebSocket connection closed");
+    });
+  } catch (err) {
+    console.log(err);
+  }
 });
 
 app.listen(PORT, () => {
