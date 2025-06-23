@@ -141,14 +141,20 @@ app.ws("/connection", async (ws) => {
         const completion = await openai.chat.completions.create({
           model: "gpt-4.1-nano",
           messages: history,
-          stream: false,
+          stream: true,
         });
 
-        const assistantMessage = completion.choices[0]?.message.content;
+        let assistantMessage = "";
+        for await (const chunk of completion) {
+          const content = chunk.choices[0]?.delta?.content || "";
+          if (content) {
+            assistantMessage += content;
+            ws.send(JSON.stringify({ type: "text", token: content }));
+          }
+        }
+        
         console.log("[setup] Assistant:", assistantMessage);
         history.push({ role: "assistant", content: assistantMessage });
-
-        ws.send(JSON.stringify({ type: "text", token: assistantMessage }));
       } else if (msg.type === "prompt") {
         try {
           history.push({
@@ -159,14 +165,20 @@ app.ws("/connection", async (ws) => {
           const completion = await openai.chat.completions.create({
             model: "gpt-4.1-nano",
             messages: history,
-            stream: false,
+            stream: true,
           });
 
-          const assistantMessage = completion.choices[0]?.message.content;
+          let assistantMessage = "";
+          for await (const chunk of completion) {
+            const content = chunk.choices[0]?.delta?.content || "";
+            if (content) {
+              assistantMessage += content;
+              ws.send(JSON.stringify({ type: "text", token: content }));
+            }
+          }
+          
           console.log("[prompt] Assistant:", assistantMessage);
           history.push({ role: "assistant", content: assistantMessage });
-
-          ws.send(JSON.stringify({ type: "text", token: assistantMessage }));
         } catch (err) {
           console.error("Run failed:", err);
         }
