@@ -82,7 +82,27 @@ app.post('/voice', async (req, res) => {
     res.end(failResponse.toString());
     return;
   }
+  
+  // Debug what's actually in the database
+  console.log("Raw data from Firebase:", JSON.stringify(data, null, 2));
+  
   let voiceId = data.voiceId;
+  let locale = data.locale;
+  let tone = data.tone;
+  let personality = data.personality;
+  
+  console.log("Extracted values:", {
+    voiceId,
+    locale, 
+    tone,
+    personality
+  });
+  console.log("Voice selection debug:", {
+    userId,
+    locale,
+    tone,
+    voiceId,
+  });
   console.log("here's the data: ", data)
 
   connect.conversationRelay({
@@ -107,35 +127,45 @@ app.post('/create-assistant', async (req, res) => {
   let locale = req.body.locale;
 
   let voiceId;
+  console.log("Voice selection inputs:", { locale, tone });
+  
   if (locale === "pt") {
     // Portuguese voices
     switch (tone) {
       case "Technical":
         voiceId = "ylkAmqCrRDIZwbkOGyJe"; // Wlademir - Deep Brazilian Male
+        console.log("Selected PT Technical voice:", voiceId);
         break;
       case "Casual":
         voiceId = "iScHbNW8K33gNo3lGgbo"; // Marianne
+        console.log("Selected PT Casual voice:", voiceId);
         break;
       case "Ironic":
         voiceId = "l88WmPeLH7L0O0VA9lqm"; // Lax2
+        console.log("Selected PT Ironic voice:", voiceId);
         break;
       default: // Sarcastic
         voiceId = "mPDAoQyGzxBSkE0OAOKw"; // Carla - Authority VSL
+        console.log("Selected PT Sarcastic (default) voice:", voiceId);
     }
   } else {
     // English voices
     switch (tone) {
       case "Technical":
         voiceId = "6xPz2opT0y5qtoRh1U1Y"; // 905ms Middle aged American male voice. Good for clear narration. 
+        console.log("Selected EN Technical voice:", voiceId);
         break;
       case "Casual":
         voiceId = "pPdl9cQBQq4p6mRkZy2Z";  // 948ms An adorable voice perfect for animation projects.
+        console.log("Selected EN Casual voice:", voiceId);
         break;
       case "Ironic":
         voiceId = "9yzdeviXkFddZ4Oz8Mok"; // n/a Young American male voice cheerfully cracking up. Perfect for humorous dialogues and happy characters. Voice was created reading jokes and funny literature.
+        console.log("Selected EN Ironic voice:", voiceId);
         break;
       default: // Sarcastic
         voiceId = "mZ8K1MPRiT5wDQaasg3i"; // 897ms A British studio quality voice with a neutral, warm English accent, great for TV, Voiceover, Explainer videos, Advertising and Social Media.
+        console.log("Selected EN Sarcastic (default) voice:", voiceId);
     }
   }
   console.log("the voiceId selected: ", voiceId)
@@ -148,16 +178,19 @@ app.post('/create-assistant', async (req, res) => {
     lastUsed: serverTimestamp(),
     active: true,
     voiceId,
-    locale
+    locale,
+    tone
   }
+  
+  console.log("Saving profile details:", JSON.stringify(profileDetails, null, 2));
 
   try {
     await update(dbRef, {
       [path]: profileDetails
     })
-    console.log("profile created in firebase")
+    console.log("profile created in firebase successfully")
   } catch (err) {
-    console.error("Issue creating profile in firebase")
+    console.error("Issue creating profile in firebase:", err)
   }
 
   res.send(200, "good")
