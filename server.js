@@ -105,18 +105,22 @@ app.ws("/connection", async (ws) => {
   try {
     ws.on("message", async (data) => {
       const msg = JSON.parse(data);
-      console.log("Incoming message:", msg);
+      console.log("Incoming WebSocket message:", JSON.stringify(msg, null, 2));
 
       // Retrieve or initialize this connection's history
       let history = messageHistories.get(ws);
       if (!history) {
+        console.log("Creating new message history for connection");
         history = [];
         messageHistories.set(ws, history);
+      } else {
+        console.log(`Retrieved existing history with ${history.length} messages`);
       }
 
       // Set phone number in ws var
       if (msg.from) {
         const { number: cleanNumber, isWhatsapp } = extractPhoneInfo(msg.from);
+        console.log("Setting connection info:", { cleanNumber, isWhatsapp });
         connections.set(ws, { number: cleanNumber, isWhatsapp });
       }
 
@@ -144,14 +148,36 @@ app.ws("/connection", async (ws) => {
           stream: true,
         });
 
+        console.log("Starting OpenAI streaming completion...");
         let assistantMessage = "";
+        let chunkCount = 0;
         for await (const chunk of completion) {
+          chunkCount++;
           const content = chunk.choices[0]?.delta?.content || "";
+          const finishReason = chunk.choices[0]?.finish_reason;
+          
+          console.log(`[setup] Chunk ${chunkCount}:`, {
+            hasContent: !!content,
+            contentLength: content.length,
+            finishReason,
+            content: content.substring(0, 50) + (content.length > 50 ? "..." : "")
+          });
+          
           if (content) {
             assistantMessage += content;
-            ws.send(JSON.stringify({ type: "text", token: content }));
+            const message = { type: "text", token: content, last: false };
+            console.log(`[setup] Sending chunk ${chunkCount}:`, message);
+            ws.send(JSON.stringify(message));
+          }
+          
+          // Send final message when stream ends
+          if (finishReason) {
+            const finalMessage = { type: "text", token: "", last: true };
+            console.log(`[setup] Sending final message:`, finalMessage);
+            ws.send(JSON.stringify(finalMessage));
           }
         }
+        console.log(`[setup] Stream complete. Total chunks: ${chunkCount}, Message length: ${assistantMessage.length}`);
         
         console.log("[setup] Assistant:", assistantMessage);
         history.push({ role: "assistant", content: assistantMessage });
@@ -168,14 +194,36 @@ app.ws("/connection", async (ws) => {
             stream: true,
           });
 
+          console.log("Starting OpenAI streaming completion for prompt...");
           let assistantMessage = "";
+          let chunkCount = 0;
           for await (const chunk of completion) {
+            chunkCount++;
             const content = chunk.choices[0]?.delta?.content || "";
+            const finishReason = chunk.choices[0]?.finish_reason;
+            
+            console.log(`[prompt] Chunk ${chunkCount}:`, {
+              hasContent: !!content,
+              contentLength: content.length,
+              finishReason,
+              content: content.substring(0, 50) + (content.length > 50 ? "..." : "")
+            });
+            
             if (content) {
               assistantMessage += content;
-              ws.send(JSON.stringify({ type: "text", token: content }));
+              const message = { type: "text", token: content, last: false };
+              console.log(`[prompt] Sending chunk ${chunkCount}:`, message);
+              ws.send(JSON.stringify(message));
+            }
+            
+            // Send final message when stream ends
+            if (finishReason) {
+              const finalMessage = { type: "text", token: "", last: true };
+              console.log(`[prompt] Sending final message:`, finalMessage);
+              ws.send(JSON.stringify(finalMessage));
             }
           }
+          console.log(`[prompt] Stream complete. Total chunks: ${chunkCount}, Message length: ${assistantMessage.length}`);
           
           console.log("[prompt] Assistant:", assistantMessage);
           history.push({ role: "assistant", content: assistantMessage });
@@ -185,45 +233,62 @@ app.ws("/connection", async (ws) => {
       }
     });
     ws.on("close", async () => {
+      console.log("WebSocket connection closing...");
       const callerInfo = connections.get(ws);
+      console.log("Caller info:", callerInfo);
       let toNumber = callerInfo?.number;
       let fromNumber = process.env.FROM_NUMBER;
 
       // Fetch locale/profile from Firebase again
-      const userId = hashPhoneNumber(toNumber);
-      let data;
-      try {
-        const userRef = ref(db, `users/${userId}/profile`);
-        const result = await get(userRef);
-        data = result.val();
-      } catch (err) {
-        console.error("error connecting to firebase on close: ", err);
-        data = {};
-      }
+      if (toNumber) {
+        const userId = hashPhoneNumber(toNumber);
+        console.log("Fetching profile for userId:", userId);
+        let data;
+        try {
+          const userRef = ref(db, `users/${userId}/profile`);
+          const result = await get(userRef);
+          data = result.val();
+          console.log("Retrieved profile data:", data);
+        } catch (err) {
+          console.error("error connecting to firebase on close: ", err);
+          data = {};
+        }
 
-      const locale = data.locale;
-      // choose message by locale (defaults to en)
-      const closingBody =
-        locale === "pt"
-          ? "Caro criador sinta-se à vontade para me ligar de volta a qualquer momento"
-          : "Dear creator feel free to call me back anytime";
+        const locale = data.locale;
+        // choose message by locale (defaults to en)
+        const closingBody =
+          locale === "pt"
+            ? "Caro criador sinta-se à vontade para me ligar de volta a qualquer momento"
+            : "Dear creator feel free to call me back anytime";
 
-      if (callerInfo && callerInfo.isWhatsapp) {
-        toNumber = `whatsapp:${toNumber}`;
-        fromNumber = `whatsapp:${fromNumber}`;
+        console.log("Preparing to send closing message:", { locale, closingBody });
+
+        if (callerInfo && callerInfo.isWhatsapp) {
+          toNumber = `whatsapp:${toNumber}`;
+          fromNumber = `whatsapp:${fromNumber}`;
+          console.log("Using WhatsApp format:", { toNumber, fromNumber });
+        } else {
+          console.log("Using SMS format:", { toNumber, fromNumber });
+        }
+        
+        try {
+          console.log("Sending closing message...");
+          await client.messages.create({
+            from: fromNumber,
+            to: toNumber,
+            body: closingBody,
+          });
+          console.log("Closing message sent successfully");
+        } catch (error) {
+          console.error("ERROR sending closing message:", error);
+        }
+      } else {
+        console.log("No caller info found, skipping closing message");
       }
-      try {
-        await client.messages.create({
-          from: fromNumber,
-          to: toNumber,
-          body: closingBody,
-        });
-        console.log("message sent");
-      } catch (error) {
-        console.error("ERROR!!!!!!!", error);
-      }
+      
       connections.delete(ws);
-      console.log("WebSocket connection closed");
+      messageHistories.delete(ws);
+      console.log("WebSocket connection closed and cleaned up");
     });
   } catch (err) {
     console.log(err);
