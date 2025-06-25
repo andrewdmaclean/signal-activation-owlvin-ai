@@ -108,9 +108,9 @@ app.post('/voice', async (req, res) => {
   connect.conversationRelay({
     url: `wss://${process.env.WEBSOCKET_SERVER_URL}/connection`, // build from host env var
     ttsProvider: 'Elevenlabs',
-    transcriptionProvider: "Deepgram",
+    transcriptionProvider: "deepgram",
     language: locale === "pt" ? "pt-BR" : "en-US",
-    speechModel: "nova-3-general",
+    speechModel: "nova-2-general",
     voice: voiceId,
     interruptible: "none",
   });
