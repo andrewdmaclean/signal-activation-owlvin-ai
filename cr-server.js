@@ -109,6 +109,7 @@ app.post('/voice', async (req, res) => {
     url: `wss://${process.env.WEBSOCKET_SERVER_URL}/connection`, // build from host env var
     ttsProvider: 'Elevenlabs',
     transcriptionProvider: "Deepgram",
+    language: locale === "pt" ? "pt-BR" : "en-US",
     speechModel: "nova-3-general",
     voice: voiceId,
     interruptible: "none",
@@ -133,15 +134,15 @@ app.post('/create-assistant', async (req, res) => {
     // Portuguese voices
     switch (tone) {
       case "Technical":
-        voiceId = "ylkAmqCrRDIZwbkOGyJe"; // Wlademir - Deep Brazilian Male
+        voiceId = "m151rjrbWXbBqyq56tly"; // Carla - Institutional
         console.log("Selected PT Technical voice:", voiceId);
         break;
       case "Casual":
-        voiceId = "iScHbNW8K33gNo3lGgbo"; // Marianne
+        voiceId = "x3mAOLD9WzlmrFCwA1S3"; // Evelin Perdomo
         console.log("Selected PT Casual voice:", voiceId);
         break;
       case "Ironic":
-        voiceId = "l88WmPeLH7L0O0VA9lqm"; // Lax2
+        voiceId = "wOCZZnsBoGOFlQRdxeRb"; // Peter - The Prophet
         console.log("Selected PT Ironic voice:", voiceId);
         break;
       default: // Sarcastic
